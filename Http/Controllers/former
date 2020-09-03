@@ -1,0 +1,226 @@
+
+    /**
+     * Add related relationship
+     *
+     * @param integer $id
+     * @return void
+     */
+    public function addRelated(int $id)
+    {
+        //
+    }
+
+    /**
+     * Toggle belongsToMany relationship
+     *
+     * @param integer $id Model's id
+     * @param integer $related_id   Related's id
+     * @return void
+     */
+    public function toggle(int $id, int $related_id)
+    {
+        $model = $this->model::findOrFail($id)->first();
+        return $model->users()->toggle($related_id);
+    }
+
+    /**
+     * Display a listing of the related resource.
+     *
+     * @param integer $id Model's id
+     * @param integer $related_id   Related's id
+     * @return \Illuminate\Http\Response
+     */
+    public function relatedIndex(int $id, int $related_id)
+    {
+        $model = $this->model::findOrFail($id);
+        $relatedModels = $model->products()->orderByDesc('updated_at')->paginate(20);
+
+        // return view("$this->viewsFolder.index", [
+        //     Str::plural($related) => $relatedModels,
+        // ]);
+    }
+
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    // public function index()
+    // {
+    //     // $this->checkAuth("index");
+    //     dd("Am in the index file");
+
+    //     $models = $this->model::orderByDesc('updated_at')->paginate(20);
+
+    //     return view("$this->viewsFolder.index", [
+    //         $this->pluralName => $models,
+    //     ]);
+    // }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    // public function create()
+    // {
+        // return view("$this->viewsFolder.create");
+    // }
+
+    /**
+     * Display the specified resource.
+     *
+     * @param  \App\Category  $this->model
+     * @return \Illuminate\Http\Response
+     */
+    // public function show($id)
+    // {
+    //     $this->checkAuth("show");
+
+    //     $model = $this->model::findOrFail($id);
+    //     return view("$this->viewsFolder.show", [
+    //         $this->name => $model,
+    //     ]);
+    // }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    // public function edit($id)
+    // {
+    //     $this->checkAuth("edit");
+
+    //     $model = $this->model::findOrFail($id);
+    //     return view("$this->viewsFolder.edit", [
+    //         $this->name => $model,
+    //     ]);
+    // }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  Description  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        // dd($request->all());
+        $data = $request->validated();
+        // dd("I am here");
+        dd($data);
+
+        if (isset($data['image']) && $data['image']) {
+            // store the image
+            $imagePath = request('image')->store("img/$this->pluralName", 'public');
+
+            // Override the image in the request array
+            $data = array_merge($data, [
+                'image' => $imagePath,
+            ]);
+        }
+
+        // if user set this as default
+        if (isset($data["default"]) && $data["default"]) {
+            // set the previous default to false
+            $prev = $this->model::where("default", true)->get()->first();
+
+            // if there was a previous default
+            if ($prev) {
+                $prev->default = false;
+                $prev->save();
+            }
+        }
+
+
+        $this->model::create($data);
+
+        return redirect()
+            ->route("$this->name.index")
+            ->with([
+                "status" => true,
+                "status_message" => Str::title($this->name) . " created",
+            ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param  Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function update(Request $request, $id)
+    {
+        $data = $request->validated();
+
+        $model = $this->model::findOrFail($id);
+
+        $model->name = $data["name"];
+        $model->short_description = $data["short_description"];
+        $model->full_description = $data["full_description"];
+
+        if (isset($data['image']) && $data['image']) {
+            // store the image
+            $imagePath = request('image')->store("img/$this->pluralName", 'public');
+            // store the image path in the database
+            $model->image = $imagePath;
+        }
+
+        if (isset($data["default"]) && $data["default"]) {
+            // set the previous default to false
+            $prev = $this->model::where("default", true)->get()->first();
+
+            // if there was a previous default
+            if ($prev) {
+                $prev->default = false;
+                $prev->save();
+            }
+
+            // set new default
+            $model->default = true;
+        }
+
+        $model->save();
+
+        return redirect()
+            ->route("$this->name.show", $model->id)
+            ->with([
+                "status" => true,
+                "status_message" => Str::title($this->name) . " updated",
+            ]);
+    }
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  \App\User  $user
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        $this->checkAuth("destroy");
+
+        $model = $this->model::findOrFail($id);
+        $model->delete();
+
+        return redirect()
+            ->route("$this->name.index")
+            ->with([
+                "status" => true,
+                "status_message" => Str::title($this->name) . " deleted.",
+            ]);
+    }
+
+    /**
+     * Force delete the specified resource from storage.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function forceDelete($id)
+    {
+        $this->checkAuth("forceDelete");
+
+        $model = $this->model::findOrFail($id);
+        $model->forceDelete();
+        return redirect(route('product.index'));
+    }

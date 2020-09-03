@@ -1,0 +1,101 @@
+ {
+        // view method
+        if(in_array($method, $this->getViewMethods()))
+        {
+            // return view
+            return view($this->getViewsFolder().'.'.$method);
+        }
+
+        // database manipulation
+        else if(in_array($method, $this->getStorageMethods()))
+        {
+            // check for required parameters
+            // method is update
+            if (count($parameters) < 2 && $method === "update")
+            {
+                // throw missing required parameter
+                throw $this->lengthRequiredException();
+            }
+
+            else if(count($parameters) < 1)
+            {
+                // throw missing required parameter
+                throw $this->lengthRequiredException();
+            }
+
+            $request = $parameters[0];
+            $this->setCurrentRequest($parameters[0]);
+
+            // call request processor
+            $data = $this->formProcessor($this->getCurrentRequest());
+
+            // loop through data
+            foreach ($data as $field => $value) {
+
+                // check for images
+                if(stripos($field, 'image')){
+
+                    // not empty or null
+                    if($field){
+                        // store image
+                        $imagePath = request($field)
+                            ->store(
+                                config('dec-base.imagePath', 'img')."/".$this->getPluralName(),
+                                    config('dec-base.fileStorageDriver', 'public')
+                            );
+
+                        // merge imagepath with the request array
+                        $data = array_merge($data, [
+                            $field => $imagePath,
+                        ]);
+                    }
+
+                    // empty or null
+                    else{
+
+                    }
+                }
+            }
+
+
+            // store data
+            if($method === "store"){
+                $this->getModel()::create($data);
+            }
+
+            // update data
+            if($method === "update"){
+                $id = $parameters[1];
+
+                $model = $this->getModel()::findOrFail($id);
+
+                // loop through
+                foreach ($data as $field => $value) {
+
+                    // update database
+                    $model->$field = $value;
+
+                }
+
+                $model->save();
+
+            }
+        }
+
+        // deleting method
+        else if(in_array($method, $this->getDeleteMethods()))
+        {
+            // fetch model
+
+            // delete model
+        }
+
+        // method not found
+        else{
+            // throw undefined method exception
+            dd("Method is undefined");
+        }
+
+
+        return $this->baseRedirect();
+    }
